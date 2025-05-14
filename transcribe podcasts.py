@@ -13,7 +13,7 @@ import openai
 import tiktoken
 
 #%%
-podcast_episode_url = "https://podcasts.apple.com/us/podcast/adam-lane-smith-shallon-lester-avoidant-attachment/id1713427809?i=1000700214414"
+podcast_episode_url = "<PODCAST URL>"
 download_folder="downloads"
 transcript_folder="transcripts"
 
