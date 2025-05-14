@@ -1,4 +1,5 @@
 
+#%%
 import requests
 import re
 import os
@@ -13,10 +14,16 @@ import openai
 import tiktoken
 
 #%%
-podcast_episode_url = "<PODCAST URL>"
-download_folder="downloads"
-transcript_folder="transcripts"
+#Define parameters
+podcast_episode_url = "<PODCAST URL>" #The URL where you can find the podcast. To date, I have only tested this on the Apple Podcast pages, specific to each episode.
+download_folder = "downloads"
+transcript_folder = "transcripts"
+podcast_description = "The Drive podcast with Peter Attia" #The information you are giving ChatGPT about your specific podcast, in the prompt.
 
+max_tokens_input=8000 #determines the token size of transcription chunks to be fed into OpenAI's API at a time. Must be under input token limit.
+max_tokens_output = max_tokens_input+4000
+
+#%%
 def get_episode_title_from_page(url):
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -47,7 +54,6 @@ podcast_title = podcast_title.replace("-", ",")
 
 print(podcast_title)
 #%%
-
 def download_unique_mp3s_with_titles(url, download_folder=download_folder, transcript_folder=transcript_folder, podcast_title=podcast_title):
     response = requests.get(url)
     if response.status_code != 200:
@@ -103,8 +109,7 @@ def download_unique_mp3s_with_titles(url, download_folder=download_folder, trans
                 os.remove(temp_filename)
     return safe_titles
 
-# Example usage:
-# podcast_title = download_unique_mp3s_with_titles(podcast_episode_url)[0]
+# Download the podcast, and save a local copy
 download_unique_mp3s_with_titles(podcast_episode_url)
 
 #%%
@@ -112,136 +117,137 @@ file_name = podcast_title
 mp3_path_name = os.path.join(download_folder, f"{file_name}.mp3")
 transcript_path_name_doc = os.path.join(transcript_folder, f"{file_name}.docx")
 
-# Load Whisper model and transcribe
+# Load Whisper model and transcribe the audio file
 model = whisper.load_model("base")  # "tiny", "small", "medium", "large" also work
 result = model.transcribe(mp3_path_name)
 
-print(result['text'])
+long_transcription = result['text']
+print(long_transcription)
 
-# Save transcript to Word document
+# Save the transcript to a Word document
 doc = Document()
-doc.add_heading(file_name, level=1)
-doc.add_paragraph(result['text'])
+# doc.add_heading(file_name, level=1)
+doc.add_paragraph(long_transcription)
 doc.save(transcript_path_name_doc)
 
-transcript_path_name_txt= os.path.join(transcript_folder, f"{file_name}.txt")
-with open(transcript_path_name_txt, "w", encoding="utf-8") as f:
-    f.write(result['text'])
+#save the file also to a text file
+# transcript_path_name_txt= os.path.join(transcript_folder, f"{file_name}.txt")
+# with open(transcript_path_name_txt, "w", encoding="utf-8") as f:
+#     f.write(long_transcription)
 
 #delete mp3 file
 os.remove(mp3_path_name)
 
 #%%
-# NEXT STEPS:
-# extract title, description, and episode number from the podcast page
-#use gpt 4o-mini to clean up the transcript, chunk by chunk
-# then, have gpt-4o-mini stitch the chunks together by giving it the last part of the previous chunk and the first part of the next chunk
-#or, extract the last ~50 words from the prior chunk trasncript and include that in the prompt for the next chunk. 
-#gpt 4o-mini supposedly has 35K input token limit. translates to 25K words. output token limit is 16K, so ~12K words 
-
-
-
-
-
-
-
 #Fetch OpenAI API key
-#This key needs to be created on OpenAI's page, then saved as an environmental variable on your computer
-api_key = os.getenv("OPENAI_API_KEY")
+api_key = os.getenv("OPENAI_API_KEY") #This key needs to be created on OpenAI's page, then saved as an environmental variable on your computer
+
+
+
 
 #%%
 # Function to split long transcription into smaller chunks
-def split_into_chunks(text, max_tokens=2000):
+def split_into_chunks(text, max_tokens=max_tokens_input):
     encoder = tiktoken.get_encoding("cl100k_base")  # GPT-4's tokenizer
-    tokens = encoder.encode(text)
+    sentences = text.split('. ')  # Split roughly by sentence ends
     chunks = []
+    current_chunk = ''
     
-    # Split tokens into chunks that fit the model's token limit
-    for i in range(0, len(tokens), max_tokens):
-        chunk = tokens[i:i+max_tokens]
-        chunks.append(encoder.decode(chunk))
+    for sentence in sentences:
+        # Reattach the period and ensure spacing
+        sentence = sentence.strip()
+        if sentence and not sentence.endswith('.'):
+            sentence += '.'
+        
+        # Check token length if we add this sentence
+        prospective_chunk = current_chunk + ' ' + sentence if current_chunk else sentence
+        if len(encoder.encode(prospective_chunk)) <= max_tokens:
+            current_chunk = prospective_chunk
+        else:
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+            current_chunk = sentence
+    
+    if current_chunk:
+        chunks.append(current_chunk.strip())
     
     return chunks
-
 #%%
-# Function to clean up each chunk of transcription using GPT-4 API
-def clean_transcription_chunk(raw_transcription_chunk):
-    prompt = f"""
-    Clean up the following transcription to make it readable, with proper grammar, punctuation, and paragraphs:\n\n{raw_transcription_chunk}.
 
-    Make 
-    Format the output as a transcript, like the following:
-    Chris: What is your favorite color?
-    Joe: My favorite color is blue.
-    Chris: Cool.   
-    """
+# Function to clean up each chunk of transcription using GPT-4o-mini API
+def clean_transcription_chunk(raw_transcription_chunk, max_tokens=max_tokens_output, prior_final_lines=None, podcast_description=podcast_description):
+    prompt = f"You are helping to clean and format a transcript from an episode of {podcast_description}. Below is a new chunk of raw transcript text. Please edit it to make it readable, with correct grammar, punctuation, speaker formatting, and paragraph breaks."
 
-    response = openai.Completion.create(
-        engine="gpt-4",  # You can also use "gpt-4" or other available variants
-        prompt=prompt,
-        max_tokens=7000,  # Limit the output to 2000 tokens
-        temperature=0.7,  # Adjust temperature for creativity
+    if prior_final_lines is None:
+        prompt += f"""
+        Format the output as a dialogue, like this:
+        Host: What is your favorite color?
+        Guest: My favorite color is blue.
+        Host: Cool.
+
+        Here is the transcript to edit:\n\n{raw_transcription_chunk}
+        """
+    else:
+        prompt += f"""
+        This section follows directly after the previous transcript section, which ended with the following line:\n\n{prior_final_lines}
+
+        The new section is likely to, but may not necessarily, begin with the same speaker as the last speaker above. Here's the raw transcript to edit:\n\n{raw_transcription_chunk}
+        """
+
+    client = openai.OpenAI()  # Automatically picks up your API key from environment or config
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=max_tokens,
+        temperature=0.7,
         top_p=1.0,
-        n=1,
-        stop=["\n"]
+        n=1
     )
-    
-    cleaned_text = response.choices[0].text.strip()
+
+    cleaned_text = response.choices[0].message.content.strip()
+
     return cleaned_text
 
+#%%
 # Function to process a long transcription (split into chunks, clean each, and combine them)
-def clean_long_transcription(long_transcription, max_tokens=2000):
+def clean_long_transcription(long_transcription, max_tokens_input=max_tokens_input,max_tokens_output=max_tokens_output):
     # Split transcription into manageable chunks
-    chunks = split_into_chunks(long_transcription, max_tokens)
+    chunks = split_into_chunks(long_transcription,max_tokens_input)
     
+    cleaned_chunks=[]
+    final_prior_lines=''
+
     # Clean up each chunk and combine results
-    cleaned_chunks = [clean_transcription_chunk(chunk) for chunk in chunks]
+    for i, chunk in enumerate(chunks):
+        if i==0:
+            cleaned_chunk = clean_transcription_chunk(chunk, max_tokens_output)
+        else:
+            cleaned_chunk = clean_transcription_chunk(chunk,max_tokens_output,final_prior_lines)
+        
+        # Extract the final line to pass to the next chunk
+        lines = [line.strip() for line in cleaned_chunk.strip().split('\n') if line.strip()]
+        if lines:
+            # final_prior_lines = "\n".join(lines[-1:])
+            final_prior_lines = lines[-1:]
+        lines=[]
+
+        cleaned_chunks.append(cleaned_chunk)
+
+    # cleaned_chunks = [clean_transcription_chunk(chunk) for chunk in chunks]
     cleaned_transcription = "\n".join(cleaned_chunks)
     
     return cleaned_transcription
 
 
-
-
-
 #%%
-
-long_transcription = result['text']
-
 cleaned_transcription = clean_long_transcription(long_transcription)
-print("Cleaned Transcription:\n", cleaned_transcription)
 
-
-
-
-
-
-#%%
-
-# Function to clean up transcription using GPT-4 API
-def clean_transcription(raw_transcription):
-    prompt = f"Clean up the following transcription to make it readable, with proper grammar, punctuation, and paragraphs:\n\n{raw_transcription}"
-
-    response = openai.Completion.create(
-        engine="gpt-4o-mini",  # You can also use "gpt-4" or any other available variant if needed
-        prompt=prompt,
-        max_tokens=2000,  # Limit the output to 2000 tokens (feel free to adjust)
-        temperature=0.7,  # Adjust temperature to control creativity (lower = more deterministic)
-        top_p=1.0,
-        n=1,
-        stop=["\n"]  # End the output after a line break
-    )
-    
-    # Extract the cleaned-up text from the response
-    cleaned_text = response.choices[0].text.strip()
-    return cleaned_text
-
-# Example usage
-raw_transcription = result['text']
-
-cleaned_transcription = clean_transcription(raw_transcription)
-print("Cleaned Transcription:\n", cleaned_transcription)
-
-with open(f"{file_name}_cleaned_transcription.txt", "w", encoding="utf-8") as f:
-    f.write(result['text'])
-
+# Save the cleaned transcript to a Word document
+cleaned_transcript_path_name_doc = os.path.join(transcript_folder, f"{file_name} - CLEANED.docx")
+cleaned_doc = Document()
+cleaned_doc.add_paragraph(cleaned_transcription)
+cleaned_doc.save(cleaned_transcript_path_name_doc)
