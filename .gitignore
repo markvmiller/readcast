@@ -4,3 +4,5 @@ transcripts/
 create*
 podcast_episode*
 youtube_episode*
+.DS_Store*
+__pycache__/
