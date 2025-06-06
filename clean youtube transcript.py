@@ -2,16 +2,15 @@
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 from docx import Document
-import re, os, tiktoken, openai, yt_dlp
+import re, os, tiktoken, openai, yt_dlp, youtube_episode
 
 #%%
 #Define parameters
-video_url = "<YOUTUBE URL>"
+video_url = youtube_episode.url #saved in another file to prevent saving URL directly in committed script
 transcript_folder = "transcripts"
 
 max_tokens_input=8000 #determines the token size of transcription chunks to be fed into OpenAI's API at a time. Must be under input token limit.
 max_tokens_output = max_tokens_input+4000
-
 
 #%%
 # Initialize yt-dlp without downloading the video
@@ -41,6 +40,7 @@ full_text = ' '.join([entry['text'] for entry in transcript])
 print(full_text)
 # Please edit the following text passage by adding commas, period, and punctuation as necessary.
 
+#%%
 #Fetch OpenAI API key
 api_key = os.getenv("OPENAI_API_KEY") #This key needs to be created on OpenAI's page, then saved as an environmental variable on your computer
 
@@ -148,7 +148,23 @@ cleaned_transcription = clean_long_transcription(full_text)
 # Save the cleaned transcript to a Word document
 cleaned_transcript_path_name_doc = os.path.join(transcript_folder, f"{video_title}.docx")
 cleaned_doc = Document()
-cleaned_doc.add_paragraph(cleaned_transcription)
+# cleaned_doc.add_paragraph(cleaned_transcription)
+paragraph = cleaned_doc.add_paragraph()
+
+# ChatGPT highlights select text with "**".  Use regex to split text into normal and bold parts
+parts = re.split(r'(\*\*.*?\*\*)', cleaned_transcription)
+
+for part in parts:
+    if part.startswith('**') and part.endswith('**'):
+        # Remove the ** markers
+        clean_text = part[2:-2]
+        run = paragraph.add_run(clean_text)
+        run.bold = True
+    else:
+        # Normal text
+        paragraph.add_run(part)
+
+# Save the document
 cleaned_doc.save(cleaned_transcript_path_name_doc)
 
 
@@ -157,4 +173,3 @@ Next steps:
 - Tinker with token limit. The ideal is as large as possible, as to minimize the risk of misidentifying the speaker and inconsistencies between chunks. But small enough that hitting the token limit is never a concern.
 - determine if "final line" logic needs refining. since speakers talk for a while, it may not be necessary to extract everything since the last break between speakers.
 """
-# %%
