@@ -34,12 +34,33 @@ channel_name = clean_name(info.get('uploader'))
 video_id = video_url.split('v=')[-1]
 
 # Get transcript
-transcript = YouTubeTranscriptApi.get_transcript(video_id)
+# transcript = YouTubeTranscriptApi.get_transcript(video_id)
+# cookies = {"CONSENT": "YES+1"}  # minimal consent cookie
+# transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=["en"], cookies=cookies)
+# Get the TranscriptList object
+api = YouTubeTranscriptApi()
 
-full_text = ' '.join([entry['text'] for entry in transcript])
+# 1. Fetch a transcript (defaults to English, prefers manual)
+transcript = api.fetch(video_id, languages=['en'])
+
+# 2. To inspect available transcripts
+transcript_list = api.list(video_id)
+
+# For example, choose by language
+# transcript = transcript_list.find_transcript(['en']).fetch()
+# print(transcript)
+
+gen = transcript_list.find_generated_transcript(['en'])
+auto_transcript = gen.fetch()
+
+# Join into one string
+full_text = " ".join(snippet.text for snippet in transcript)
+
 print(full_text)
-# Please edit the following text passage by adding commas, period, and punctuation as necessary.
 
+# full_text = ' '.join([entry['text'] for entry in transcript])
+# print(full_text)
+# Please edit the following text passage by adding commas, period, and punctuation as necessary.
 #%%
 #Fetch OpenAI API key
 api_key = os.getenv("OPENAI_API_KEY") #This key needs to be created on OpenAI's page, then saved as an environmental variable on your computer
@@ -77,7 +98,7 @@ def split_into_chunks(text, max_tokens=max_tokens_input):
 #%%
 
 # Function to clean up each chunk of transcription using GPT-4o-mini API
-def clean_transcription_chunk(raw_transcription_chunk, max_tokens=max_tokens_output, prior_final_lines=None, podcast_description=video_description):
+def clean_transcription_chunk(raw_transcription_chunk, max_tokens=max_tokens_output, prior_final_lines=None):
     prompt = f"""
         You are helping to clean and format a transcript from a YouTube video of {channel_name}. Below is a new chunk of raw transcript text. Please edit it to make it readable, with correct grammar, punctuation, speaker formatting, and paragraph breaks.
         """
@@ -173,3 +194,5 @@ Next steps:
 - Tinker with token limit. The ideal is as large as possible, as to minimize the risk of misidentifying the speaker and inconsistencies between chunks. But small enough that hitting the token limit is never a concern.
 - determine if "final line" logic needs refining. since speakers talk for a while, it may not be necessary to extract everything since the last break between speakers.
 """
+
+# %%

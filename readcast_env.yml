@@ -1,0 +1,24 @@
+name: readcast_env
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - jupyter
+  - ipykernel
+  - ffmpeg
+  - requests
+  - beautifulsoup4
+  - pip:
+    - "numpy<2"
+    - langchain
+    - openai
+    - mutagen
+    - git+https://github.com/openai/whisper.git
+    - python-docx
+    - youtube_transcript_api
+    - yt_dlp
+    - chromadb
+    - sentence-transformers
+    - ffmpeg-python

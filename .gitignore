@@ -6,3 +6,5 @@ podcast_episode*
 youtube_episode*
 .DS_Store*
 __pycache__/
+chroma_db/
+instructions*

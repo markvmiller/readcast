@@ -5,7 +5,7 @@ from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3
 from docx import Document
 from bs4 import BeautifulSoup, Comment
-import podcast_episode
+import podcast_episode 
 
 #%%
 #Define parameters
@@ -238,7 +238,7 @@ os.remove(mp3_path_name)
 
 
 #%%
-# Function to split long transcription into smaller chunks
+# Split long transcription into smaller chunks
 def split_into_chunks(text, max_tokens=max_tokens_input):
     encoder = tiktoken.get_encoding("cl100k_base")  # GPT-4's tokenizer
     sentences = text.split('. ')  # Split roughly by sentence ends
