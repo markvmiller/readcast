@@ -8,3 +8,5 @@ youtube_episode*
 __pycache__/
 chroma_db/
 instructions*
+agent*
+.python-version*

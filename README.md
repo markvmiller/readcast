@@ -1,45 +1,169 @@
-# readcast
+# Podcast Transcriber
 
-This code automates the process of downloading, transcribing, and cleaning up podcast episodes to generate readable, dialogue-formatted transcripts.
+A professional web application that transforms podcast episodes into clean, readable transcripts with speaker identification and automatic Word document generation.
 
-## What It Does
-Given a podcast episode URL, the script:
+## Features
 
-- Downloads the episode audio
+- **Simple Web Interface**: Minimalist browser-based UI with just a URL input and download button
+- **Automatic Transcription**: Uses OpenAI Whisper for high-quality audio transcription
+- **Speaker Identification**: Automatically identifies hosts, co-hosts, and guests using OpenAI
+- **Smart Cleaning**: Refines transcripts using AI for better readability
+- **Word Document Export**: Generates formatted Word documents with speaker labels
+- **Error Handling**: Comprehensive error handling for invalid URLs, API failures, etc.
+- **Modular Design**: Clean, maintainable codebase suitable for cloud deployment
 
-- Transcribes it using OpenAI Whisper
+## Quick Start
 
-- Cleans and formats the transcript
+### Prerequisites
 
-- Applies proper grammar, punctuation, and paragraphing
+1. **Python 3.11+** installed
+2. **FFmpeg** installed for audio processing
+3. **OpenAI API key** for transcription cleaning and speaker identification
 
-- Attempts to distinguish between two speakers and formats the result as a readable dialogue
+### Installation
 
-- Produces output like:
+1. **Clone or download this repository**
 
-Host: What’s your take on this?  
-Guest: I think it’s important to look at the data.  
+2. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-**Note**: Speaker detection is only designed for two-speaker podcasts. Results may be inaccurate for group discussions.
+3. **Set up OpenAI API key**:
+   ```bash
+   export OPENAI_API_KEY="your-openai-api-key-here"
+   ```
+   *Note: On Windows, use `set OPENAI_API_KEY=your-openai-api-key-here`*
 
-## Why Use This?
+4. **Run the application**:
+   ```bash
+   python run_app.py
+   ```
 
-- Surprisingly effective for turning raw audio into clean transcripts
+The application will open in your web browser at `http://localhost:8501`
 
-- Much more cost-effective than subscribing to AI-powered transcription platforms
+## Usage
 
-- No monthly fee – just pay for OpenAI API usage when transcribing
+1. **Open the web interface** in your browser
+2. **Enter a podcast episode URL** (Apple Podcasts, Spotify, or direct MP3 links)
+3. **Click "Generate Transcript"** to start processing
+4. **Wait for processing** to complete (progress will be shown)
+5. **Download the results**:
+   - Raw transcript (direct Whisper output)
+   - Cleaned transcript (AI-refined with speaker labels)
 
-- Open and extensible – built in Python for easy tinkering
+## Project Structure
 
-## Work In Progress
+```
+readcast/
+├── src/
+│   ├── core/                    # Core processing modules
+│   │   ├── config.py           # Application configuration
+│   │   ├── metadata_extractor.py # Podcast metadata extraction
+│   │   ├── speaker_identifier.py  # Speaker identification
+│   │   ├── audio_downloader.py    # Audio file downloading
+│   │   ├── transcriber.py         # Whisper transcription
+│   │   ├── transcript_cleaner.py  # AI-powered transcript cleaning
+│   │   ├── document_generator.py  # Word document generation
+│   │   └── podcast_processor.py   # Main orchestrator
+│   └── web/
+│       └── app.py              # Streamlit web interface
+├── downloads/                  # Temporary audio files
+├── transcripts/                # Generated Word documents
+├── static/                     # Static web assets
+├── requirements.txt            # Python dependencies
+├── run_app.py                 # Application entry point
+└── README.md                  # This file
+```
 
-While functional, this repository is still evolving. Planned improvements include:
+## Configuration
 
-- Creating a lightweight, local RAG (Retrieval-Augmented Generation) engine to let you query the episode ("What did they say about glucose metabolism?")
+The application can be configured by modifying `src/core/config.py`:
 
-- Smarter chunking and context tracking
+- **WHISPER_MODEL**: Whisper model size (`tiny`, `base`, `small`, `medium`, `large`)
+- **OPENAI_MODEL**: OpenAI model for cleaning (`gpt-4o-mini` recommended)
+- **MAX_TOKENS_INPUT/OUTPUT**: Token limits for processing chunks
+- **File paths**: Download and transcript folders
 
+## Supported Sources
 
+- **Apple Podcasts**: Full episode pages
+- **Spotify**: Podcast episode pages
+- **Direct MP3 URLs**: Any direct audio file links
 
-Feel free to fork, customize, or suggest improvements.
+## Error Handling
+
+The application handles various error scenarios:
+
+- Invalid URLs
+- Network connectivity issues
+- Audio download failures
+- Transcription errors
+- OpenAI API rate limits
+- File system permissions
+
+## Deployment
+
+### Local Development
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Set environment variables
+export OPENAI_API_KEY="your-key"
+
+# Run the app
+python run_app.py
+```
+
+### Cloud Deployment (Optional)
+
+The application is designed for easy deployment to cloud platforms:
+
+1. **Heroku**: Add a `Procfile` with `web: streamlit run src/web/app.py`
+2. **Railway**: Deploy as a Python web service
+3. **AWS/GCP**: Containerize with Docker
+
+## Performance Tips
+
+- **Whisper Model**: Use `base` for balance of speed/accuracy, `large` for best quality
+- **Token Limits**: Adjust `MAX_TOKENS_INPUT` based on your OpenAI model limits
+- **GPU Support**: Install PyTorch with CUDA for faster transcription
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"OpenAI API key not found"**
+   - Ensure the `OPENAI_API_KEY` environment variable is set
+   - Check for typos in your API key
+
+2. **"No .mp3 links found"**
+   - Verify the podcast URL is correct
+   - Try a different podcast source (Apple Podcasts works best)
+
+3. **"FFmpeg not found"**
+   - Install FFmpeg: `brew install ffmpeg` (macOS) or `choco install ffmpeg` (Windows)
+
+4. **Slow transcription**
+   - Consider using a smaller Whisper model (`tiny` or `base`)
+   - Ensure you have sufficient disk space for downloads
+
+### Logs and Debugging
+
+The application provides detailed console output during processing. Check the terminal where you ran `python run_app.py` for error messages and progress updates.
+
+## License
+
+This project is provided as-is for educational and personal use. Please ensure you comply with the terms of service of podcast platforms and OpenAI when using this application.
+
+## Contributing
+
+Feel free to submit issues and enhancement requests! Key areas for improvement:
+
+- Support for additional podcast platforms
+- Real-time processing status updates
+- Batch processing of multiple episodes
+- Additional output formats (PDF, plain text)
+- Speaker diarization improvements
