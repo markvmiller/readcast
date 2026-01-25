@@ -32,7 +32,10 @@ class DocumentGenerator:
         """
         # Create filename
         suffix = " - CLEANED" if cleaned else ""
-        safe_title = "".join(c for c in episode_title if c.isalnum() or c in (" ", "_", "-")).strip()
+        #revisit below at some point. it overlaps with prior title cleaning function
+        ALLOWED_CHARS = set(" _-&")
+        safe_title = "".join(c for c in episode_title if c.isalnum() or c in ALLOWED_CHARS).strip()
+        # safe_title = "".join(c for c in episode_title if c.isalnum() or c in (" ", "_", "-")).strip()
         filename = f"{safe_title}{suffix}.docx"
         filepath = os.path.join(self.transcript_folder, filename)
         
@@ -84,6 +87,11 @@ class DocumentGenerator:
                 clean_text = part[2:-2]
                 run = paragraph.add_run(clean_text)
                 run.bold = True
+            elif part.startswith('*') and part.endswith('*'):
+                # Italic text
+                clean_text = part[1:-1]
+                run = paragraph.add_run(clean_text)
+                run.italic = True
             else:
                 # Normal text
                 paragraph.add_run(part)

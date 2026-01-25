@@ -48,6 +48,8 @@ class TranscriptCleaner:
         prompt = f"""
         You are helping to clean and format a transcript from an episode of {podcast_description}. 
         Below is a new chunk of raw transcript text. Please edit it to make it readable, with correct grammar, punctuation, speaker formatting, and paragraph breaks.
+
+        Note: The raw transcript may contain misspellings of the host's or guests' names. When in doubt, always use the host{(' and guests' if guests else '')} names provided: Host = {host}{(', Guests = ' + ', '.join(guests)) if guests else ''}. Replace any unclear or incorrect names in the transcript with these correct names.
         """
         
         if guests:

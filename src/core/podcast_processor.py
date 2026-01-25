@@ -1,69 +1,101 @@
-"""Main podcast processing orchestrator."""
+"""Main transcript processing orchestrator supporting multiple sources."""
 
 import os
 from typing import Dict, Optional, Tuple
 
 from .config import Config
-from .metadata_extractor import MetadataExtractor
 from .speaker_identifier import SpeakerIdentifier
-from .audio_downloader import AudioDownloader
-from .transcriber import Transcriber
 from .transcript_cleaner import TranscriptCleaner
 from .document_generator import DocumentGenerator
+from .transcript_source import TranscriptSource
+from .podcast_source import PodcastSource
+from .youtube_source import YouTubeSource
 
 
-class PodcastProcessor:
-    """Main class that orchestrates the entire podcast processing pipeline."""
+class TranscriptProcessor:
+    """Main class that orchestrates transcript processing from multiple sources."""
     
     def __init__(self):
         """Initialize all components."""
         Config.validate()
         Config.ensure_directories()
         
-        self.metadata_extractor = MetadataExtractor()
+        # Initialize shared components
         self.speaker_identifier = SpeakerIdentifier(
             model=Config.OPENAI_MODEL,
             temperature=0.0
         )
-        self.audio_downloader = AudioDownloader(Config.DOWNLOAD_FOLDER)
-        self.transcriber = Transcriber(Config.WHISPER_MODEL)
         self.transcript_cleaner = TranscriptCleaner(
             model=Config.OPENAI_MODEL,
             max_tokens_input=Config.MAX_TOKENS_INPUT,
             max_tokens_output=Config.MAX_TOKENS_OUTPUT
         )
         self.document_generator = DocumentGenerator(Config.TRANSCRIPT_FOLDER)
+        
+        # Initialize transcript sources
+        self.sources = {
+            "podcast": PodcastSource(
+                download_folder=Config.DOWNLOAD_FOLDER,
+                whisper_model=Config.WHISPER_MODEL
+            ),
+            "youtube": YouTubeSource()
+        }
     
-    def process_podcast(self, url: str) -> Tuple[str, str]:
+    def get_supported_sources(self) -> Dict[str, str]:
+        """Get supported source types and their descriptions."""
+        return {
+            "podcast": "Podcast episodes (Apple Podcasts, Spotify, MP3)",
+            "youtube": "YouTube videos"
+        }
+    
+    def validate_url(self, source_type: str, url: str) -> bool:
+        """Validate URL for a specific source type."""
+        if source_type not in self.sources:
+            return False
+        
+        return self.sources[source_type].validate_url(url)
+    
+    def process_transcript(self, source_type: str, url: str) -> Tuple[str, str]:
         """
-        Process a podcast URL from start to finish.
+        Process a transcript from any supported source.
         
         Args:
-            url: Podcast episode URL
+            source_type: Type of source ("podcast" or "youtube")
+            url: URL of the content
             
         Returns:
             Tuple of (raw_document_path, cleaned_document_path)
         """
-        print(f"Processing podcast: {url}")
+        print(f"Processing {source_type}: {url}")
         
-        # Step 1: Extract metadata
-        print("Extracting metadata...")
-        metadata = self.metadata_extractor.extract_all_metadata(url)
-        podcast_title = metadata["podcast_title"]
-        episode_title = metadata["episode_title"]
-        episode_description = metadata["episode_description"]
+        # Validate source type
+        if source_type not in self.sources:
+            raise ValueError(f"Unsupported source type: {source_type}")
         
-        print(f"Podcast: {podcast_title}")
-        print(f"Episode: {episode_title}")
+        source = self.sources[source_type]
+        
+        # Step 1: Extract transcript and metadata
+        print("Extracting transcript and metadata...")
+        transcript_result = source.extract_transcript(url)
+        metadata = transcript_result.metadata
+        
+        print(f"Title: {metadata.title}")
+        print(f"Source: {metadata.source_name}")
+        print(f"Type: {metadata.source_type}")
         
         # Step 2: Identify speakers
         print("Identifying speakers...")
         speakers = self.speaker_identifier.extract_speakers(
-            podcast_title, episode_title, episode_description
+            metadata.source_name, metadata.title, metadata.description
         )
-        podcast_description = self.speaker_identifier.format_speaker_description(
-            speakers, podcast_title
-        )
+        
+        # For YouTube, adjust the description format
+        if metadata.source_type == "youtube":
+            content_description = f"a YouTube video from {metadata.source_name}"
+        else:
+            content_description = self.speaker_identifier.format_speaker_description(
+                speakers, metadata.source_name
+            )
         
         print(f"Host: {speakers['host']}")
         if speakers["cohosts"]:
@@ -71,41 +103,29 @@ class PodcastProcessor:
         if speakers["guests"]:
             print(f"Guests: {', '.join(speakers['guests'])}")
         
-        # Step 3: Download audio
-        print("Downloading audio...")
-        audio_path = self.audio_downloader.download_audio(url, episode_title)
-        if not audio_path:
-            raise RuntimeError("Failed to download audio")
-        
-        # Step 4: Transcribe audio
-        print("Transcribing audio...")
-        transcription_result = self.transcriber.transcribe_audio(audio_path)
-        if not transcription_result:
-            raise RuntimeError("Failed to transcribe audio")
-        
-        raw_transcript = self.transcriber.get_transcript_text(transcription_result)
-        
-        # Step 5: Generate raw transcript document
+        # Step 3: Generate raw transcript document
         print("Generating raw transcript document...")
         raw_doc_path = self.document_generator.create_document(
-            episode_title, podcast_title, speakers, raw_transcript, cleaned=False
+            metadata.title, metadata.source_name, speakers, 
+            transcript_result.raw_text, cleaned=False
         )
         
-        # Step 6: Clean transcript
+        # Step 4: Clean transcript
         print("Cleaning transcript...")
         cleaned_transcript = self.transcript_cleaner.clean_transcription(
-            raw_transcript, podcast_description, speakers
+            transcript_result.raw_text, content_description, speakers
         )
         
-        # Step 7: Generate cleaned transcript document
+        # Step 5: Generate cleaned transcript document
         print("Generating cleaned transcript document...")
         cleaned_doc_path = self.document_generator.create_document(
-            episode_title, podcast_title, speakers, cleaned_transcript, cleaned=True
+            metadata.title, metadata.source_name, speakers, 
+            cleaned_transcript, cleaned=True
         )
         
-        # Step 8: Cleanup
-        print("Cleaning up temporary files...")
-        self.audio_downloader.cleanup_file(audio_path)
+        # Step 6: Cleanup (for podcast sources)
+        if hasattr(source, 'cleanup'):
+            source.cleanup()
         
         print("Processing completed successfully!")
         return raw_doc_path, cleaned_doc_path
@@ -118,5 +138,12 @@ class PodcastProcessor:
             "download_folder": Config.DOWNLOAD_FOLDER,
             "transcript_folder": Config.TRANSCRIPT_FOLDER,
             "max_tokens_input": str(Config.MAX_TOKENS_INPUT),
-            "max_tokens_output": str(Config.MAX_TOKENS_OUTPUT)
+            "max_tokens_output": str(Config.MAX_TOKENS_OUTPUT),
+            "supported_sources": ", ".join(self.get_supported_sources().keys())
         }
+
+
+# Keep the old class name for backward compatibility
+class PodcastProcessor(TranscriptProcessor):
+    """Legacy class name for backward compatibility."""
+    pass

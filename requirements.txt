@@ -11,6 +11,10 @@ tiktoken>=0.5.0
 # Audio processing
 ffmpeg-python>=0.2.0
 
+# YouTube support
+youtube-transcript-api>=0.6.0
+yt-dlp>=2023.10.0
+
 # Optional: for better performance
 torch>=2.0.0
 torchaudio>=2.0.0
