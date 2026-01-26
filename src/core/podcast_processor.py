@@ -109,24 +109,24 @@ class TranscriptProcessor:
             metadata.title, metadata.source_name, speakers, 
             transcript_result.raw_text, cleaned=False
         )
-        
-        # Step 4: Clean transcript
+
+        # Step 4: Cleanup (for podcast sources)
+        if hasattr(source, 'cleanup'):
+            source.cleanup()
+
+        # Step 5: Clean transcript
         print("Cleaning transcript...")
         cleaned_transcript = self.transcript_cleaner.clean_transcription(
             transcript_result.raw_text, content_description, speakers
         )
         
-        # Step 5: Generate cleaned transcript document
+        # Step 6: Generate cleaned transcript document
         print("Generating cleaned transcript document...")
         cleaned_doc_path = self.document_generator.create_document(
             metadata.title, metadata.source_name, speakers, 
             cleaned_transcript, cleaned=True
         )
-        
-        # Step 6: Cleanup (for podcast sources)
-        if hasattr(source, 'cleanup'):
-            source.cleanup()
-        
+                
         print("Processing completed successfully!")
         return raw_doc_path, cleaned_doc_path
     

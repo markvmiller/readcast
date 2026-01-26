@@ -3,7 +3,7 @@
 import streamlit as st
 import os
 import time
-from typing import Optional
+# from typing import Optional
 
 # Add the src directory to the path so we can import modules
 import sys
@@ -206,7 +206,8 @@ class TranscriptApp:
             time.sleep(0.5)
             
             # Final processing
-            raw_doc_path, cleaned_doc_path = self.processor.process_transcript(
+            # raw_doc_path, cleaned_doc_path = self.processor.process_transcript(
+            raw_doc, cleaned_doc = self.processor.process_transcript(
                 st.session_state.source_type, st.session_state.url
             )
             
@@ -215,8 +216,8 @@ class TranscriptApp:
             
             # Store results
             st.session_state.result = {
-                'raw_doc_path': raw_doc_path,
-                'cleaned_doc_path': cleaned_doc_path,
+                'raw_doc': raw_doc,
+                'cleaned_doc': cleaned_doc,
                 'success': True,
                 'source_type': st.session_state.source_type
             }
@@ -253,39 +254,63 @@ class TranscriptApp:
             st.header("✅ Processing Complete!")
             st.success(f"Your {source_type} transcript has been generated successfully!")
             
+            raw_doc = result['raw_doc']
+            cleaned_doc = result['cleaned_doc']
+
             col1, col2 = st.columns(2)
             
             with col1:
                 st.subheader("📄 Raw Transcript")
-                raw_path = result['raw_doc_path']
-                filename = os.path.basename(raw_path)
-                
-                if os.path.exists(raw_path):
-                    with open(raw_path, 'rb') as f:
-                        st.download_button(
-                            label="📥 Download Raw Transcript",
-                            data=f.read(),
-                            file_name=filename,
-                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        )
-                else:
-                    st.error("Raw transcript file not found")
+                # raw_path = result['raw_doc_path']
+                # filename = os.path.basename(raw_path)
+                st.download_button(
+                    label="📥 Download Raw Transcript",
+                    # data=f.read(),
+                    data=raw_doc["bytes"],
+                    # file_name=filename,
+                    file_name=raw_doc["filename"],
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+
+                # if os.path.exists(raw_path):
+                #     with open(raw_path, 'rb') as f:
+                #         st.download_button(
+                #             label="📥 Download Raw Transcript",
+                #             # data=f.read(),
+                #             data=raw_doc["bytes"],
+                #             # file_name=filename,
+                #             file_name=raw_doc["filename"],
+                #             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                #         )
+                # else:
+                #     st.error("Raw transcript file not found")
             
             with col2:
                 st.subheader("🧹 Cleaned Transcript")
-                cleaned_path = result['cleaned_doc_path']
-                filename = os.path.basename(cleaned_path)
+                st.download_button(
+                    label="📥 Download Cleaned Transcript",
+                    data=cleaned_doc["bytes"],
+                    # data=f.read(),
+                    # file_name=filename,
+                    file_name=cleaned_doc["filename"],
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+
+                # cleaned_path = result['cleaned_doc_path']
+                # filename = os.path.basename(cleaned_path)
                 
-                if os.path.exists(cleaned_path):
-                    with open(cleaned_path, 'rb') as f:
-                        st.download_button(
-                            label="📥 Download Cleaned Transcript",
-                            data=f.read(),
-                            file_name=filename,
-                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        )
-                else:
-                    st.error("Cleaned transcript file not found")
+                # if os.path.exists(cleaned_path):
+                #     with open(cleaned_path, 'rb') as f:
+                #         st.download_button(
+                #             label="📥 Download Cleaned Transcript",
+                #             data=cleaned_doc["bytes"],
+                #             # data=f.read(),
+                #             # file_name=filename,
+                #             file_name=cleaned_doc["filename"],
+                #             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                #         )
+                # else:
+                #     st.error("Cleaned transcript file not found")
             
             # New transcript button
             if st.button("🆕 Process Another", use_container_width=True):

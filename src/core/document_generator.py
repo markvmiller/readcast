@@ -6,6 +6,7 @@ from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from typing import List, Dict
+from io import BytesIO
 
 
 class DocumentGenerator:
@@ -15,8 +16,11 @@ class DocumentGenerator:
         self.transcript_folder = transcript_folder
         os.makedirs(transcript_folder, exist_ok=True)
     
-    def create_document(self, episode_title: str, podcast_title: str, speakers: Dict[str, List[str]], 
-                       transcript_text: str, cleaned: bool = True) -> str:
+    def create_document(self, episode_title: str, podcast_title: str, speakers: Dict[str, List[str]],
+                        transcript_text: str, cleaned: bool = True, save_to_disk: bool = False) -> Dict[str, bytes]:
+
+    # def create_document(self, episode_title: str, podcast_title: str, speakers: Dict[str, List[str]], 
+    #                    transcript_text: str, cleaned: bool = True) -> str:
         """
         Create a Word document from transcript.
         
@@ -37,7 +41,10 @@ class DocumentGenerator:
         safe_title = "".join(c for c in episode_title if c.isalnum() or c in ALLOWED_CHARS).strip()
         # safe_title = "".join(c for c in episode_title if c.isalnum() or c in (" ", "_", "-")).strip()
         filename = f"{safe_title}{suffix}.docx"
-        filepath = os.path.join(self.transcript_folder, filename)
+        filepath: Optional[str] = None
+        if save_to_disk:
+            filepath = os.path.join(self.transcript_folder, filename)
+        # filepath = os.path.join(self.transcript_folder, filename)
         
         # Create document
         doc = Document()
@@ -68,11 +75,20 @@ class DocumentGenerator:
         doc.add_heading("Transcript", level=2)
         self._add_formatted_text(doc, transcript_text)
         
+        buffer = BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+
         # Save document
-        doc.save(filepath)
-        print(f"Document saved: {filepath}")
+        if save_to_disk and filepath:
+            doc.save(filepath)
+            print(f"Document saved to disk: {filepath}")
         
-        return filepath
+        return {
+            "filename": filename,
+            "bytes": buffer.getvalue(),
+            "filepath": filepath
+        }
     
     def _add_formatted_text(self, doc: Document, text: str) -> None:
         """Add text with formatting (handles bold text marked with **)."""
