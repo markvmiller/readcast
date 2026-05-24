@@ -5,6 +5,7 @@ from sentence_transformers import SentenceTransformer
 from chromadb import PersistentClient
 from chromadb.utils import embedding_functions
 from typing import List
+from src.core.config import Config
 
 
 #%%
@@ -12,7 +13,7 @@ from typing import List
 transcript_folder = "transcripts"
 # transcript_file_name = '#914 , Dr Ethan Kross , How To Stop Feeling Negative Emotions All The Time - CLEANED.docx' 
 transcript_file_name = '#914 , Dr Ethan Kross , How To Stop Feeling Negative Emotions All The Time.docx' 
-openai_model="gpt-4o-mini"
+openai_model = Config.OPENAI_MODEL
 
 #Fetch OpenAI API key
 api_key = os.getenv("OPENAI_API_KEY") #This key needs to be created on OpenAI's page, then saved as an environmental variable on your computer

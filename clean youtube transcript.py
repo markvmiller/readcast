@@ -62,8 +62,12 @@ print(full_text)
 # print(full_text)
 # Please edit the following text passage by adding commas, period, and punctuation as necessary.
 #%%
+#Import configuration
+from src.core.config import Config
+
 #Fetch OpenAI API key
 api_key = os.getenv("OPENAI_API_KEY") #This key needs to be created on OpenAI's page, then saved as an environmental variable on your computer
+openai_model = Config.OPENAI_MODEL
 
 
 
@@ -117,7 +121,7 @@ def clean_transcription_chunk(raw_transcription_chunk, max_tokens=max_tokens_out
     client = openai.OpenAI()  # Automatically picks up your API key from environment or config
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=openai_model,
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": prompt}

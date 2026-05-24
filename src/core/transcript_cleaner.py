@@ -3,12 +3,15 @@
 import openai
 import tiktoken
 from typing import List, Dict, Optional
+from .config import Config
 
 
 class TranscriptCleaner:
     """Cleans and formats raw transcription using OpenAI."""
     
-    def __init__(self, model: str = "gpt-4o-mini", max_tokens_input: int = 8000, max_tokens_output: int = 12000):
+    def __init__(self, model: str = None, max_tokens_input: int = 8000, max_tokens_output: int = 12000):
+        if model is None:
+            model = Config.OPENAI_MODEL
         self.model = model
         self.max_tokens_input = max_tokens_input
         self.max_tokens_output = max_tokens_output

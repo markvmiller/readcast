@@ -5,8 +5,10 @@ import re
 from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
-from typing import List, Dict
+from typing import List, Dict, Optional
 from io import BytesIO
+
+from .config import Config
 
 
 class DocumentGenerator:
@@ -35,11 +37,9 @@ class DocumentGenerator:
             Path to created document
         """
         # Create filename
-        suffix = " - CLEANED" if cleaned else ""
-        #revisit below at some point. it overlaps with prior title cleaning function
-        ALLOWED_CHARS = set(" _-&")
+        suffix = Config.CLEANED_TRANSCRIPT_SUFFIX if cleaned else Config.RAW_TRANSCRIPT_SUFFIX
+        ALLOWED_CHARS = set(Config.ALLOWED_FILENAME_CHARS)
         safe_title = "".join(c for c in episode_title if c.isalnum() or c in ALLOWED_CHARS).strip()
-        # safe_title = "".join(c for c in episode_title if c.isalnum() or c in (" ", "_", "-")).strip()
         filename = f"{safe_title}{suffix}.docx"
         filepath: Optional[str] = None
         if save_to_disk:
@@ -114,7 +114,7 @@ class DocumentGenerator:
     
     def get_document_path(self, episode_title: str, cleaned: bool = True) -> str:
         """Get the expected document path for an episode."""
-        suffix = " - CLEANED" if cleaned else ""
-        safe_title = "".join(c for c in episode_title if c.isalnum() or c in (" ", "_", "-")).strip()
+        suffix = Config.CLEANED_TRANSCRIPT_SUFFIX if cleaned else Config.RAW_TRANSCRIPT_SUFFIX
+        safe_title = "".join(c for c in episode_title if c.isalnum() or c in Config.ALLOWED_FILENAME_CHARS).strip()
         filename = f"{safe_title}{suffix}.docx"
         return os.path.join(self.transcript_folder, filename)

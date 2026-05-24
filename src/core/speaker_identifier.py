@@ -3,12 +3,15 @@
 import json
 import openai
 from typing import Dict, List, Optional
+from .config import Config
 
 
 class SpeakerIdentifier:
     """Identifies speakers from podcast metadata using OpenAI."""
     
-    def __init__(self, model: str = "gpt-4o-mini", temperature: float = 0.0):
+    def __init__(self, model: str = None, temperature: float = 0.0):
+        if model is None:
+            model = Config.OPENAI_MODEL
         self.model = model
         self.temperature = temperature
         self.client = openai.OpenAI()

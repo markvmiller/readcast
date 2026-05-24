@@ -29,7 +29,13 @@ class MetadataExtractor:
                     items = data if isinstance(data, list) else [data]
                     
                     for item in items:
-                        if item.get("@type") == "PodcastEpisode":
+                        # Handle CreativeWorkSeries (for Apple Podcasts)
+                        if item.get("@type") == "CreativeWorkSeries":
+                            name = item.get("name")
+                            if name:
+                                return name
+                        # Handle PodcastEpisode
+                        elif item.get("@type") == "PodcastEpisode":
                             series = item.get("partOfSeries")
                             if isinstance(series, dict):
                                 name = series.get("name")
@@ -49,30 +55,33 @@ class MetadataExtractor:
             response = requests.get(url, timeout=self.timeout)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Try Open Graph meta tag
-            og_title = soup.find("meta", property="og:title")
-            if og_title and og_title.get("content"):
-                title = og_title["content"]
+
+            # Apple Podcasts page embeds the episode title in a visible title span
+            episode_title_elem = soup.select_one('span[data-testid="episode-lockup-title"], span.episode-details__title-text')
+            if episode_title_elem and episode_title_elem.get_text(strip=True):
+                title = episode_title_elem.get_text(separator=' ', strip=True)
             else:
-                # Try meta name="title"
-                meta_title = soup.find("meta", attrs={"name": "title"})
-                if meta_title and meta_title.get("content"):
-                    title = meta_title["content"]
+                # Try Open Graph meta tag
+                og_title = soup.find("meta", property="og:title")
+                if og_title and og_title.get("content"):
+                    title = og_title["content"]
                 else:
-                    # Fall back to title tag
-                    title = soup.title.string.strip() if soup.title and soup.title.string else "untitled_episode"
-            
+                    # Try meta name="title"
+                    meta_title = soup.find("meta", attrs={"name": "title"})
+                    if meta_title and meta_title.get("content"):
+                        title = meta_title["content"]
+                    else:
+                        # Fall back to title tag
+                        title = soup.title.string.strip() if soup.title and soup.title.string else "untitled_episode"
+
             # Clean up the title
-            title = re.sub(r'[^\x00-\x7F]+', '', title)
+            title = title.strip()
+            title = re.sub(r'[\r\n\t]+', ' ', title)
             title = re.sub(r'\s+', ' ', title).strip()
-            title = title.replace("&", "And").title()
-            title = title.replace(":", ",")
-            title = title.replace("-", ",")
-            title = title.replace(" ,", ",")
-            
+            title = title.replace("’", "'").replace("“", '"').replace("”", '"')
+
             return title
-            
+
         except Exception as e:
             print(f"Error extracting episode title: {e}")
             return "untitled_episode"

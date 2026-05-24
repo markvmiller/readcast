@@ -25,6 +25,11 @@ class Config:
     
     # Web UI settings
     WEB_TITLE: str = "Podcast Transcriber"
+
+    # Transcript filename suffixes
+    RAW_TRANSCRIPT_SUFFIX: str = " (raw version)"
+    CLEANED_TRANSCRIPT_SUFFIX: str = ""
+    ALLOWED_FILENAME_CHARS: str = " _-&()"
     
     @classmethod
     def validate(cls) -> None:
